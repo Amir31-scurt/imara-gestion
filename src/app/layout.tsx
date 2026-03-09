@@ -22,6 +22,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Imara | Order Management",
   description: "Luxury fashion order management system",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Imara Gestion",
+  },
 };
 
 export default function RootLayout({

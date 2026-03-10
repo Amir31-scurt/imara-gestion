@@ -5,9 +5,19 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Order } from "@/lib/redux/features/ordersApi";
 import { auth } from "@/lib/firebase";
-import { useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Save, Trash2, X } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
+import { useCurrency } from "@/context/CurrencyContext";
+import { useState } from "react";
+
+const CURRENCIES = [
+  { label: "XOF (CFA)", value: "XOF" },
+  { label: "GMD (Dalasi)", value: "GMD" },
+  { label: "USD (Dollar)", value: "USD" },
+  { label: "AED (Dirham)", value: "AED" },
+] as const;
+
+type InputCurrency = "XOF" | "GMD" | "USD" | "AED";
 
 const orderSchema = z.object({
   clientName: z.string().min(2, "Client name is required"),
@@ -29,18 +39,20 @@ interface OrderFormProps {
 }
 
 export function OrderForm({ initialData, onSubmit, onDelete, loading }: OrderFormProps) {
+  const { parseToXOF } = useCurrency();
+  const [inputCurrency, setInputCurrency] = useState<InputCurrency>("XOF");
+
   const {
     register,
     handleSubmit,
     watch,
-    setValue,
     formState: { errors },
   } = useForm<OrderFormValues>({
     resolver: zodResolver(orderSchema),
     defaultValues: initialData || {
       clientName: "",
       description: "",
-      period: new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' }), // Default to current month
+      period: new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' }),
       itemCost: 0,
       sellingPrice: 0,
       transportCost: 0,
@@ -56,15 +68,44 @@ export function OrderForm({ initialData, onSubmit, onDelete, loading }: OrderFor
 
   const onFormSubmit = async (values: OrderFormValues) => {
     const userId = auth?.currentUser?.uid || "";
+    // Convert all amounts to XOF for storage if a different currency was selected
+    const toXOF = (v: number) => inputCurrency === "XOF" ? v : parseToXOF(v, inputCurrency);
     await onSubmit({
       ...values,
-      benefit,
+      itemCost: toXOF(values.itemCost),
+      sellingPrice: toXOF(values.sellingPrice),
+      transportCost: toXOF(values.transportCost),
+      benefit: toXOF(benefit),
       userId,
     });
   };
 
+  const currencyLabel = CURRENCIES.find(c => c.value === inputCurrency)?.label || "XOF";
+
   return (
     <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-8 bg-card p-8 rounded-3xl border border-border">
+      {/* Currency selector */}
+      <div className="flex items-center gap-3 p-4 bg-primary/5 border border-primary/10 rounded-2xl">
+        <label className="text-sm font-bold text-foreground whitespace-nowrap">Input Currency:</label>
+        <div className="flex flex-wrap gap-2">
+          {CURRENCIES.map(c => (
+            <button
+              key={c.value}
+              type="button"
+              onClick={() => setInputCurrency(c.value)}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                inputCurrency === c.value
+                  ? "bg-primary text-white shadow-sm"
+                  : "bg-background border border-border text-muted-foreground hover:border-primary/40"
+              )}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-4">
           <div className="space-y-2">
@@ -124,17 +165,19 @@ export function OrderForm({ initialData, onSubmit, onDelete, loading }: OrderFor
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-bold text-foreground">Item Cost (XOF)</label>
+              <label className="text-sm font-bold text-foreground">Item Cost ({inputCurrency})</label>
               <input
                 type="number"
+                step="any"
                 {...register("itemCost", { valueAsNumber: true })}
                 className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none transition-all"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-bold text-foreground">Selling Price (XOF)</label>
+              <label className="text-sm font-bold text-foreground">Selling Price ({inputCurrency})</label>
               <input
                 type="number"
+                step="any"
                 {...register("sellingPrice", { valueAsNumber: true })}
                 className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none transition-all"
               />
@@ -142,15 +185,15 @@ export function OrderForm({ initialData, onSubmit, onDelete, loading }: OrderFor
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-bold text-foreground">Transport Cost (XOF)</label>
+            <label className="text-sm font-bold text-foreground">Transport Cost ({inputCurrency})</label>
             <input
               type="number"
+              step="any"
               {...register("transportCost", { valueAsNumber: true })}
               className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none transition-all"
             />
           </div>
 
-          <label className="text-sm font-bold text-foreground">Calculated Profit (XOF)</label>
           <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Calculated Profit</span>
@@ -158,12 +201,19 @@ export function OrderForm({ initialData, onSubmit, onDelete, loading }: OrderFor
                 "text-2xl font-bold",
                 benefit >= 0 ? "text-primary" : "text-destructive"
               )}>
-                {new Intl.NumberFormat("fr-FR").format(benefit)} CFA
+                {new Intl.NumberFormat("fr-FR").format(benefit)} {inputCurrency}
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
               Selling Price - Item Cost - Transport Cost
             </p>
+            {inputCurrency !== "XOF" && (
+              <p className="text-xs text-primary/60 mt-1">
+                ≈ {new Intl.NumberFormat("fr-FR").format(
+                  inputCurrency === "XOF" ? benefit : Math.round(benefit / ({ XOF: 1, GMD: 0.11, USD: 1/610, AED: 3.67/610 }[inputCurrency]))
+                )} CFA stored
+              </p>
+            )}
           </div>
         </div>
       </div>

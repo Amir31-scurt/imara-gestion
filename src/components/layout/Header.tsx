@@ -43,7 +43,7 @@ export function Header() {
                 onClick={() => setIsCurrencyOpen(false)}
               />
               <div className="absolute right-0 mt-2 w-32 bg-card border border-border rounded-lg shadow-lg z-50 animate-in fade-in slide-in-from-top-2">
-                {(["XOF", "GMD", "USD"] as const).map((c) => (
+                {(["XOF", "GMD", "USD", "AED"] as const).map((c) => (
                   <button
                     key={c}
                     onClick={() => {

@@ -19,9 +19,10 @@ export default function ExpensesListPage() {
     skip: !userId
   });
 
-  const { formatPrice } = useCurrency();
+  const { formatPrice, parseToXOF } = useCurrency();
   const [searchTerm, setSearchTerm] = useState("");
   const [periodFilter, setPeriodFilter] = useState("all");
+  const [inputCurrency, setInputCurrency] = useState<"XOF"|"GMD"|"USD"|"AED">("XOF");
   
   const [addExpense] = useAddExpenseMutation();
   const [deleteExpense] = useDeleteExpenseMutation();
@@ -43,10 +44,14 @@ export default function ExpensesListPage() {
     e.preventDefault();
     if (!description || !amount) return;
     
+    const rawAmount = parseFloat(amount);
+    // Convert to XOF for consistent storage
+    const amountXOF = inputCurrency === "XOF" ? rawAmount : parseToXOF(rawAmount, inputCurrency);
+    
     try {
       await addExpense({
         description,
-        amount: parseFloat(amount),
+        amount: amountXOF,
         period,
         userId
       }).unwrap();
@@ -109,14 +114,26 @@ export default function ExpensesListPage() {
       {isAdding && (
         <form onSubmit={handleAddExpense} className="bg-card p-6 rounded-3xl border border-border shadow-md space-y-4 animate-in slide-in-from-top-2">
           <h4 className="font-bold text-foreground mb-4">Record New Expense/Withdrawal</h4>
+          {/* Currency selector */}
+          <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/10 rounded-xl">
+            <span className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap">Currency:</span>
+            <div className="flex flex-wrap gap-2">
+              {(["XOF", "GMD", "USD", "AED"] as const).map(c => (
+                <button key={c} type="button" onClick={() => setInputCurrency(c)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                    inputCurrency === c ? "bg-primary text-white" : "bg-background border border-border text-muted-foreground"
+                  }`}>{c}</button>
+              ))}
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">Description</label>
               <input type="text" required value={description} onChange={e => setDescription(e.target.value)} className="w-full px-4 py-2 rounded-xl border border-border bg-transparent focus:ring-2 focus:ring-primary outline-none" placeholder="e.g. Fabric purchase" />
             </div>
             <div>
-              <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">Amount (XOF)</label>
-              <input type="number" required min="0" value={amount} onChange={e => setAmount(e.target.value)} className="w-full px-4 py-2 rounded-xl border border-border bg-transparent focus:ring-2 focus:ring-primary outline-none" placeholder="0" />
+              <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">Amount ({inputCurrency})</label>
+              <input type="number" required min="0" step="any" value={amount} onChange={e => setAmount(e.target.value)} className="w-full px-4 py-2 rounded-xl border border-border bg-transparent focus:ring-2 focus:ring-primary outline-none" placeholder="0" />
             </div>
             <div>
               <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">Period</label>

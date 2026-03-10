@@ -32,29 +32,45 @@ export function Header() {
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background hover:bg-accent transition-colors"
           >
             <span className="text-sm font-medium">{currency}</span>
-            <ChevronDown className="w-4 h-4" />
+            <ChevronDown className={`w-4 h-4 transition-transform ${isCurrencyOpen ? "rotate-180" : ""}`} />
           </button>
           
           {isCurrencyOpen && (
             <>
-              {/* Invisible overlay to catch clicks outside the dropdown to close it */}
               <div 
                 className="fixed inset-0 z-40" 
                 onClick={() => setIsCurrencyOpen(false)}
               />
-              <div className="absolute right-0 mt-2 w-32 bg-card border border-border rounded-lg shadow-lg z-50 animate-in fade-in slide-in-from-top-2">
-                {(["XOF", "GMD", "USD", "AED"] as const).map((c) => (
+              <div className="absolute right-0 mt-2 w-60 bg-card border border-border rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                <div className="px-4 py-3 border-b border-border bg-muted/20">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Select Currency</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">All rates in CFA (XOF)</p>
+                </div>
+                {([
+                  { code: "XOF", name: "CFA Franc",       rate: "1 CFA = 1 CFA",           symbol: "CFA" },
+                  { code: "GMD", name: "Gambian Dalasi",  rate: "1 D ≈ 9 CFA",             symbol: "D" },
+                  { code: "USD", name: "US Dollar",       rate: "1 $ ≈ 610 CFA",           symbol: "$" },
+                  { code: "AED", name: "UAE Dirham",      rate: "1 د.إ ≈ 166 CFA",        symbol: "د.إ" },
+                ] as const).map((c) => (
                   <button
-                    key={c}
+                    key={c.code}
                     onClick={() => {
-                      setCurrency(c);
+                      setCurrency(c.code);
                       setIsCurrencyOpen(false);
                     }}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors first:rounded-t-lg last:rounded-b-lg ${
-                      currency === c ? "text-primary font-bold" : "text-foreground"
+                    className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-accent transition-colors last:rounded-b-2xl ${
+                      currency === c.code ? "bg-primary/10" : ""
                     }`}
                   >
-                    {c}
+                    <div>
+                      <div className={`text-sm font-bold ${currency === c.code ? "text-primary" : "text-foreground"}`}>
+                        {c.code} <span className="font-normal text-muted-foreground">— {c.name}</span>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">{c.rate}</div>
+                    </div>
+                    {currency === c.code && (
+                      <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                    )}
                   </button>
                 ))}
               </div>

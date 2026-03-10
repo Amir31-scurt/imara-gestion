@@ -210,7 +210,7 @@ export function OrderForm({ initialData, onSubmit, onDelete, loading }: OrderFor
             {inputCurrency !== "XOF" && (
               <p className="text-xs text-primary/60 mt-1">
                 ≈ {new Intl.NumberFormat("fr-FR").format(
-                  inputCurrency === "XOF" ? benefit : Math.round(benefit / ({ XOF: 1, GMD: 0.11, USD: 1/610, AED: 3.67/610 }[inputCurrency]))
+                  parseToXOF(benefit, inputCurrency)
                 )} CFA stored
               </p>
             )}

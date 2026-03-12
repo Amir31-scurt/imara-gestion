@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useUpdateOrderMutation, useDeleteOrderMutation } from "@/lib/redux/features/ordersApi";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 export default function OrdersListPage() {
@@ -34,7 +34,14 @@ export default function OrdersListPage() {
   const [updateOrder] = useUpdateOrderMutation();
   const [deleteOrder] = useDeleteOrderMutation();
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   const periods = Array.from(new Set(orders.map(o => o.period))).sort();
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, periodFilter]);
 
   const filteredOrders = orders.filter((order) => {
     const matchesSearch = 
@@ -52,6 +59,10 @@ export default function OrdersListPage() {
     const matchesPeriod = periodFilter === "all" || order.period === periodFilter;
     return matchesSearch && matchesStatus && matchesPeriod;
   });
+
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedOrders = filteredOrders.slice(startIndex, startIndex + itemsPerPage);
 
   const handleArchive = async (id: string) => {
     if (confirm("Move this order to archive?")) {
@@ -166,8 +177,8 @@ export default function OrdersListPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredOrders.length > 0 ? (
-                filteredOrders.map((order) => (
+              {paginatedOrders.length > 0 ? (
+                paginatedOrders.map((order) => (
                   <tr 
                     key={order.id} 
                     id={`row-${order.id}`}
@@ -256,11 +267,26 @@ export default function OrdersListPage() {
 
         <div className="px-6 py-4 bg-muted/10 border-t border-border flex items-center justify-between">
           <p className="text-sm text-muted-foreground font-medium">
-            Showing <span className="text-foreground font-bold">{filteredOrders.length}</span> orders
+            Showing <span className="text-foreground font-bold">{filteredOrders.length === 0 ? 0 : startIndex + 1}</span> to <span className="text-foreground font-bold">{Math.min(startIndex + itemsPerPage, filteredOrders.length)}</span> of <span className="text-foreground font-bold">{filteredOrders.length}</span> orders
           </p>
           <div className="flex items-center gap-2">
-            <button disabled className="p-2 rounded-lg hover:bg-muted opacity-50"><ChevronLeft className="w-4 h-4" /></button>
-            <button disabled className="p-2 rounded-lg hover:bg-muted opacity-50"><ChevronRight className="w-4 h-4" /></button>
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              className="p-2 rounded-lg hover:bg-muted disabled:opacity-50 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-sm font-bold text-muted-foreground px-2">
+              Page {currentPage} of {Math.max(1, totalPages)}
+            </span>
+            <button 
+              disabled={currentPage === totalPages || totalPages === 0}
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              className="p-2 rounded-lg hover:bg-muted disabled:opacity-50 transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>

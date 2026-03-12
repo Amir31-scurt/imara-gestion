@@ -8,9 +8,11 @@ import {
   Filter, 
   Plus,
   Clock,
-  Trash2
+  Trash2,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 
 export default function ExpensesListPage() {
@@ -34,11 +36,22 @@ export default function ExpensesListPage() {
 
   const periods = Array.from(new Set(expenses.map(e => e.period))).sort();
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, periodFilter]);
+
   const filteredExpenses = expenses.filter((expense) => {
     const matchesSearch = expense.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesPeriod = periodFilter === "all" || expense.period === periodFilter;
     return matchesSearch && matchesPeriod;
   });
+
+  const totalPages = Math.ceil(filteredExpenses.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedExpenses = filteredExpenses.slice(startIndex, startIndex + itemsPerPage);
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,8 +199,8 @@ export default function ExpensesListPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredExpenses.length > 0 ? (
-                filteredExpenses.map((expense) => (
+              {paginatedExpenses.length > 0 ? (
+                paginatedExpenses.map((expense) => (
                   <tr 
                     key={expense.id} 
                     id={`row-${expense.id}`}
@@ -241,8 +254,27 @@ export default function ExpensesListPage() {
 
         <div className="px-6 py-4 bg-muted/10 border-t border-border flex items-center justify-between">
           <p className="text-sm text-muted-foreground font-medium">
-            Showing <span className="text-foreground font-bold">{filteredExpenses.length}</span> expenses
+            Showing <span className="text-foreground font-bold">{filteredExpenses.length === 0 ? 0 : startIndex + 1}</span> to <span className="text-foreground font-bold">{Math.min(startIndex + itemsPerPage, filteredExpenses.length)}</span> of <span className="text-foreground font-bold">{filteredExpenses.length}</span> expenses
           </p>
+          <div className="flex items-center gap-2">
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              className="p-2 rounded-lg hover:bg-muted disabled:opacity-50 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-sm font-bold text-muted-foreground px-2">
+              Page {currentPage} of {Math.max(1, totalPages)}
+            </span>
+            <button 
+              disabled={currentPage === totalPages || totalPages === 0}
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              className="p-2 rounded-lg hover:bg-muted disabled:opacity-50 transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
